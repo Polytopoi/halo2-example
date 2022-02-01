@@ -347,5 +347,5 @@ fn main() {
     assert!(prover.verify().is_err());
     // ANCHOR_END: test-circuit
 
-    print!("mock prover complete");
+    println!("mock prover complete");
 }

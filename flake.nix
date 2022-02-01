@@ -19,31 +19,14 @@
                    ];
                };
 
-             rustPkgs =
-               pkgs.rustBuilder.makePackageSet'
-                 { rustChannel = "1.56.1";
-                   packageFun = import ./Cargo.nix;
-                   packageOverrides =
-                     let
-                       expat-sys = pkgs.rustBuilder.rustLib.makeOverride {
-                         name = "expat-sys";
-                         overrideAttrs = drv: {
-                           propagatedBuildInputs = drv.propagatedBuildInputs or [ ] ++ [ pkgs.expat ];
-                         };
-                       };
-                       freetype-sys = pkgs.rustBuilder.rustLib.makeOverride {
-                         name = "freetype-sys";
-                         overrideAttrs = drv: {
-                           propagatedBuildInputs = drv.propagatedBuildInputs or [ ] ++ [ pkgs.freetype ];
-                         };
-                       };
-                    in
-                    pkgs: pkgs.rustBuilder.overrides.all ++ [ expat-sys freetype-sys ];
-                 };
-           thing = (rustPkgs.workspace.halo2-example {});
+           rustPkgs =
+             pkgs.rustBuilder.makePackageSet'
+               { rustChannel = "1.56.1";
+                 packageFun = import ./Cargo.nix;
+               };
          in
          { inherit rustPkgs;
-           defaultPackage = thing;
+           defaultPackage = rustPkgs.workspace.halo2-example {};
 
            devShell =
              pkgs.mkShell
@@ -53,12 +36,6 @@
                      cargo2nix.defaultPackage.${system}
                      gcc
                      rustc
-                     # cmake
-                     # expat
-                     # freetype
-                     # openssl
-                     # pkg-config
-                     # fontconfig
                    ];
                };
          }
