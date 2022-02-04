@@ -36,6 +36,7 @@
                      cargo2nix.defaultPackage.${system}
                      gcc
                      rustc
+                     rustfmt
                    ];
                };
          }
