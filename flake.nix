@@ -2,23 +2,20 @@
     { cargo2nix.url = "github:cargo2nix/cargo2nix";
       nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
       rust-overlay.url = "github:oxalica/rust-overlay";
-      utils.url = "github:ursi/flake-utils/6";
+      utils.url = "github:ursi/flake-utils/8";
     };
 
-  outputs = { cargo2nix, nixpkgs, rust-overlay, utils, ... }@inputs:
-    utils.for-default-systems
-      ({ system, ... }:
+  outputs = { cargo2nix, rust-overlay, utils, ... }@inputs:
+    utils.apply-systems
+      { inherit inputs;
+
+        overlays =
+          [ (import "${cargo2nix}/overlay")
+            rust-overlay.overlay
+          ];
+      }
+      ({ cargo2nix, pkgs, system, ... }:
          let
-           pkgs =
-             import nixpkgs
-               { inherit system;
-
-                 overlays =
-                   [ (import "${cargo2nix}/overlay")
-                     rust-overlay.overlay
-                   ];
-               };
-
            rustPkgs =
              pkgs.rustBuilder.makePackageSet'
                { rustChannel = "1.56.1";
@@ -33,13 +30,10 @@
                { buildInputs =
                    with pkgs;
                    [ cargo
-                     cargo2nix.defaultPackage.${system}
-                     gcc
-                     rustc
+                     cargo2nix
                      rustfmt
                    ];
                };
          }
-      )
-      inputs;
+      );
 }

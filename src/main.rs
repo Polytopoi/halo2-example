@@ -139,6 +139,18 @@ impl<F: FieldExt> FieldChip<F> {
         }
     }
 }
+// a0        a1  i0      f0
+// ------------------------
+// a             c(ab^2)
+// b
+// c
+// a         b           1
+// ab
+// ab        ab          1
+// (ab)^2
+// (ab)^2    c           1
+// c(ab)^2
+
 // ANCHOR_END: chip-config
 
 // ANCHOR: chip-impl
@@ -365,62 +377,85 @@ fn main() {
 
     // println!("mock prover complete");
 
-    // Initialize the polynomial commitment parameters
-    let params_path = Path::new("./params");
-    if File::open(&params_path).is_err() {
-        let params: Params<EqAffine> = Params::new(k);
-        let mut buf = Vec::new();
+///////////////////////////////////////////////////////////////////////////
 
-        params.write(&mut buf).expect("Failed to write params");
-        let mut file = File::create(&params_path).expect("Failed to create params");
+        let params = halo2_proofs::poly::commitment::Params::new(k);
+        let circuit: Circuit = Default::default();
 
-        file.write_all(&buf[..])
-            .expect("Failed to write params to file");
+        let vk = plonk::keygen_vk(&params, &circuit).unwrap();
+        let pk = plonk::keygen_pk(&params, vk, &circuit).unwrap();
 
-        println!("params written");
-    }
+        let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
+        plonk::create_proof(
+            &pk.params,
+            &pk.pk,
+            circuits,
+            &instances,
+            &mut rng,
+            &mut transcript,
+        )?;
+        Ok(Proof(transcript.finalize()))
 
-    let params_fs = File::open(&params_path).expect("couldn't load params");
-    let params: Params<EqAffine> =
-        Params::read::<_>(&mut BufReader::new(params_fs)).expect("Failed to read params");
+///////////////////////////////////////////////////////////////////////////
 
-    // println!("{:?}", params);
+    // // Initialize the polynomial commitment parameters
+    // let params_path = Path::new("./params");
+    // if File::open(&params_path).is_err() {
+    //     let params: Params<EqAffine> = Params::new(k);
+    //     let mut buf = Vec::new();
 
-    // Initialize the proving key
-    let vk_path = Path::new("./verifier_key");
-    if File::open(&vk_path).is_err() {
-        let vk = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-        let mut buf = Vec::new();
+    //     params.write(&mut buf).expect("Failed to write params");
+    //     let mut file = File::create(&params_path).expect("Failed to create params");
 
-        vk.write(&mut buf).expect("Failed to write vk");
-        let mut file = File::create(&vk_path).expect("Failed to create verifier_key");
+    //     file.write_all(&buf[..])
+    //         .expect("Failed to write params to file");
 
-        file.write_all(&buf[..])
-            .expect("Failed to write vk to file");
+    //     println!("params written");
+    // }
 
-        println!("verifier key written");
-    }
+    // let params_fs = File::open(&params_path).expect("couldn't load params");
+    // let params: Params<EqAffine> =
+    //     Params::read::<_>(&mut BufReader::new(params_fs)).expect("Failed to read params");
 
-    let vk_fs = File::open(&vk_path).expect("couldn't load verifier_key");
-    let vk: VerifyingKey<EqAffine> =
-        VerifyingKey::<EqAffine>::read::<_, MyCircuit<Fp>>(&mut BufReader::new(vk_fs), &params)
-            .expect("Failed to read vk");
+    // // println!("{:?}", params);
 
-    // println!("vk:\n{:?}", vk);
+    // // Initialize the proving key
+    // let vk_path = Path::new("./verifier_key");
+    // if File::open(&vk_path).is_err() {
+    //     let vk = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
+    //     let mut buf = Vec::new();
 
-    let pk = keygen_pk(&params, vk, &circuit).expect("keygen_pk should not fail");
+    //     vk.write(&mut buf).expect("Failed to write vk");
+    //     let mut file = File::create(&vk_path).expect("Failed to create verifier_key");
 
-    // Create a proof
-    let proof_path = Path::new("./proof");
-    if File::open(&proof_path).is_err() {
-        let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
-        create_proof(&params, &pk, &[circuit], &[&[&[c]]], OsRng, &mut transcript)
-            .expect("proof generation should not fail");
-        let proof: Vec<u8> = transcript.finalize();
-        let mut file = File::create(&proof_path).expect("Failed to create proof");
-        file.write_all(&proof[..]).expect("Failed to write proof");
-        println!("proof written");
-    }
+    //     file.write_all(&buf[..])
+    //         .expect("Failed to write vk to file");
+
+    //     println!("verifier key written");
+    // }
+
+    // let vk_fs = File::open(&vk_path).expect("couldn't load verifier_key");
+    // let vk: VerifyingKey<EqAffine> =
+    //     VerifyingKey::<EqAffine>::read::<_, MyCircuit<Fp>>(&mut BufReader::new(vk_fs), &params)
+    //         .expect("Failed to read vk");
+
+    // // println!("vk:\n{:?}", vk);
+
+    // let pk = keygen_pk(&params, vk, &circuit).expect("keygen_pk should not fail");
+    // let mut fuck = [c];
+
+    // // Create a proof
+    // let proof_path = Path::new("./proof");
+    // if File::open(&proof_path).is_err() {
+    //     let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
+    //     create_proof(&params, &pk, &[circuit], &[&[&[]]], OsRng, &mut transcript)
+    //     // create_proof(&params, &pk, &[circuit], &[], OsRng, &mut transcript)
+    //         .expect("proof generation should not fail");
+    //     let proof: Vec<u8> = transcript.finalize();
+    //     let mut file = File::create(&proof_path).expect("Failed to create proof");
+    //     file.write_all(&proof[..]).expect("Failed to write proof");
+    //     println!("proof written");
+    // }
 
     // let mut proof_fs = File::open(&proof_path).expect("couldn't load sha256_proof");
     // let mut proof = Vec::<u8>::new();
@@ -429,5 +464,6 @@ fn main() {
     //     .expect("Couldn't read proof");
 
     // let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
+    // println!("{:?}", verify_proof(&params, pk.get_vk(), SingleVerifier::new(&params), &[], &mut transcript));
     // println!("{:?}", verify_proof(&params, pk.get_vk(), SingleVerifier::new(&params), &[&[&[c]]], &mut transcript));
 }
