@@ -169,6 +169,7 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "0.1.0-beta.1"
+source = "git+https://github.com/zcash/halo2.git?rev=9617336d46a18f3949260731d02bd711fba9d863#9617336d46a18f3949260731d02bd711fba9d863"
 dependencies = [
  "blake2b_simd",
  "bumpalo",

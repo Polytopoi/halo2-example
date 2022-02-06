@@ -4,15 +4,14 @@ use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner},
     plonk::{
-        verify_proof, SingleVerifier,
-        create_proof, keygen_pk, keygen_vk, Advice, Circuit, Column, ConstraintSystem, Error,
-        Fixed, Instance, Selector, VerifyingKey,
+        create_proof, keygen_pk, keygen_vk, verify_proof, Advice, Circuit, Column,
+        ConstraintSystem, Error, Fixed, Instance, Selector, SingleVerifier, VerifyingKey,
     },
     poly::{commitment::Params, Rotation},
     transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
 
-use pasta_curves::EqAffine;
+use pasta_curves::{vesta, EqAffine};
 
 use rand_core::OsRng;
 
@@ -377,26 +376,38 @@ fn main() {
 
     // println!("mock prover complete");
 
-///////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
-        let params = halo2_proofs::poly::commitment::Params::new(k);
-        let circuit: Circuit = Default::default();
+    let params: Params<EqAffine> = halo2_proofs::poly::commitment::Params::new(k);
+    let default_circuit: MyCircuit<Fp> = Default::default();
+    let vk = keygen_vk(&params, &circuit).unwrap();
+    let pk = keygen_pk(&params, vk, &circuit).unwrap();
+    let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
 
-        let vk = plonk::keygen_vk(&params, &circuit).unwrap();
-        let pk = plonk::keygen_pk(&params, vk, &circuit).unwrap();
+    create_proof(
+        &params,
+        &pk,
+        &[circuit],
+        &[&[&[c]]],
+        &mut OsRng,
+        &mut transcript,
+    );
 
-        let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
-        plonk::create_proof(
-            &pk.params,
-            &pk.pk,
-            circuits,
-            &instances,
-            &mut rng,
-            &mut transcript,
-        )?;
-        Ok(Proof(transcript.finalize()))
+    let proof = transcript.finalize();
 
-///////////////////////////////////////////////////////////////////////////
+    let mut transcript = Blake2bRead::init(&proof[..]);
+
+    println!(
+        "{:?}",
+        verify_proof(
+            &params,
+            pk.get_vk(),
+            SingleVerifier::new(&params),
+            &[&[&[c]]],
+            &mut transcript
+        )
+    );
+    ///////////////////////////////////////////////////////////////////////////
 
     // // Initialize the polynomial commitment parameters
     // let params_path = Path::new("./params");
