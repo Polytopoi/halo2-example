@@ -1,25 +1,17 @@
-use std::marker::PhantomData;
-
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner},
     plonk::{
-        create_proof, keygen_pk, keygen_vk, verify_proof, Advice, Circuit, Column,
-        ConstraintSystem, Error, Fixed, Instance, Selector, SingleVerifier, VerifyingKey,
+        create_proof, keygen_pk, keygen_vk, Advice, Circuit, Column, ConstraintSystem, Error,
+        Fixed, Instance, Selector,
     },
     poly::{commitment::Params, Rotation},
-    transcript::{Blake2bRead, Blake2bWrite, Challenge255},
+    transcript::Blake2bWrite,
 };
-
 use pasta_curves::{vesta, EqAffine};
-
 use rand_core::OsRng;
-
-use std::{
-    fs::File,
-    io::{prelude::*, BufReader},
-    path::Path,
-};
+use std::marker::PhantomData;
+use std::{env, fs::File, io::prelude::*, path::Path};
 
 // ANCHOR: instructions
 trait NumericInstructions<F: FieldExt>: Chip<F> {
@@ -340,7 +332,8 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
 // ANCHOR_END: circuit
 
 fn main() {
-    use halo2_proofs::{dev::MockProver, pasta::Fp};
+    use halo2_proofs::pasta::Fp;
+    let args: Vec<String> = env::args().collect();
 
     // ANCHOR: test-circuit
     // The number of rows in our circuit cannot exceed 2^k. Since our example
@@ -348,9 +341,9 @@ fn main() {
     let k = 4;
 
     // Prepare the private and public inputs to the circuit!
-    let constant = Fp::from(7);
-    let a = Fp::from(2);
-    let b = Fp::from(3);
+    let constant = Fp::one();
+    let a = Fp::from(args[1].parse::<u64>().unwrap());
+    let b = Fp::from(args[2].parse::<u64>().unwrap());
     let c = constant * a.square() * b.square();
 
     // Instantiate the circuit with the private inputs.
@@ -360,27 +353,10 @@ fn main() {
         b: Some(b),
     };
 
-    // Arrange the public input. We expose the multiplication result in row 0
-    // of the instance column, so we position it there in our public inputs.
-    let mut public_inputs = vec![c];
-
-    // // Given the correct public input, our circuit will verify.
-    // let prover = MockProver::run(k, &circuit, vec![public_inputs.clone()]).unwrap();
-    // assert_eq!(prover.verify(), Ok(()));
-
-    // // If we try some other public input, the proof will fail!
-    // public_inputs[0] += Fp::one();
-    // let prover = MockProver::run(k, &circuit, vec![public_inputs]).unwrap();
-    // assert!(prover.verify().is_err());
-    // // ANCHOR_END: test-circuit
-
-    // println!("mock prover complete");
-
-    ///////////////////////////////////////////////////////////////////////////
-
     let params: Params<EqAffine> = halo2_proofs::poly::commitment::Params::new(k);
-    let default_circuit: MyCircuit<Fp> = Default::default();
     let vk = keygen_vk(&params, &circuit).unwrap();
+    let proof_path = "./proof";
+
     let pk = keygen_pk(&params, vk, &circuit).unwrap();
     let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
 
@@ -391,90 +367,13 @@ fn main() {
         &[&[&[c]]],
         &mut OsRng,
         &mut transcript,
-    );
+    )
+    .expect("Failed to create proof");
 
     let proof = transcript.finalize();
-
-    let mut transcript = Blake2bRead::init(&proof[..]);
-
-    println!(
-        "{:?}",
-        verify_proof(
-            &params,
-            pk.get_vk(),
-            SingleVerifier::new(&params),
-            &[&[&[c]]],
-            &mut transcript
-        )
-    );
-    ///////////////////////////////////////////////////////////////////////////
-
-    // // Initialize the polynomial commitment parameters
-    // let params_path = Path::new("./params");
-    // if File::open(&params_path).is_err() {
-    //     let params: Params<EqAffine> = Params::new(k);
-    //     let mut buf = Vec::new();
-
-    //     params.write(&mut buf).expect("Failed to write params");
-    //     let mut file = File::create(&params_path).expect("Failed to create params");
-
-    //     file.write_all(&buf[..])
-    //         .expect("Failed to write params to file");
-
-    //     println!("params written");
-    // }
-
-    // let params_fs = File::open(&params_path).expect("couldn't load params");
-    // let params: Params<EqAffine> =
-    //     Params::read::<_>(&mut BufReader::new(params_fs)).expect("Failed to read params");
-
-    // // println!("{:?}", params);
-
-    // // Initialize the proving key
-    // let vk_path = Path::new("./verifier_key");
-    // if File::open(&vk_path).is_err() {
-    //     let vk = keygen_vk(&params, &circuit).expect("keygen_vk should not fail");
-    //     let mut buf = Vec::new();
-
-    //     vk.write(&mut buf).expect("Failed to write vk");
-    //     let mut file = File::create(&vk_path).expect("Failed to create verifier_key");
-
-    //     file.write_all(&buf[..])
-    //         .expect("Failed to write vk to file");
-
-    //     println!("verifier key written");
-    // }
-
-    // let vk_fs = File::open(&vk_path).expect("couldn't load verifier_key");
-    // let vk: VerifyingKey<EqAffine> =
-    //     VerifyingKey::<EqAffine>::read::<_, MyCircuit<Fp>>(&mut BufReader::new(vk_fs), &params)
-    //         .expect("Failed to read vk");
-
-    // // println!("vk:\n{:?}", vk);
-
-    // let pk = keygen_pk(&params, vk, &circuit).expect("keygen_pk should not fail");
-    // let mut fuck = [c];
-
-    // // Create a proof
-    // let proof_path = Path::new("./proof");
-    // if File::open(&proof_path).is_err() {
-    //     let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
-    //     create_proof(&params, &pk, &[circuit], &[&[&[]]], OsRng, &mut transcript)
-    //     // create_proof(&params, &pk, &[circuit], &[], OsRng, &mut transcript)
-    //         .expect("proof generation should not fail");
-    //     let proof: Vec<u8> = transcript.finalize();
-    //     let mut file = File::create(&proof_path).expect("Failed to create proof");
-    //     file.write_all(&proof[..]).expect("Failed to write proof");
-    //     println!("proof written");
-    // }
-
-    // let mut proof_fs = File::open(&proof_path).expect("couldn't load sha256_proof");
-    // let mut proof = Vec::<u8>::new();
-    // proof_fs
-    //     .read_to_end(&mut proof)
-    //     .expect("Couldn't read proof");
-
-    // let mut transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
-    // println!("{:?}", verify_proof(&params, pk.get_vk(), SingleVerifier::new(&params), &[], &mut transcript));
-    // println!("{:?}", verify_proof(&params, pk.get_vk(), SingleVerifier::new(&params), &[&[&[c]]], &mut transcript));
+    File::create(Path::new(proof_path))
+        .expect("Failed to create proof file")
+        .write_all(&proof[..])
+        .expect("Failed to write proof");
+    println!("proof written to {}", proof_path);
 }
