@@ -26,6 +26,19 @@
            defaultPackage = rustPkgs.workspace.halo2-example {};
 
            devShell =
+             let
+               help = "cat ${help-file}";
+
+               help-file =
+                 pkgs.writeText "help"
+                 ''
+                 Commands:
+                   gen_proof a b    a and b are numbers and the proof is written
+                                    to ./proof
+                   verify c         c = a * b and the proof is read from ./proof
+                   help             show this message
+                 '';
+             in
              pkgs.mkShell
                { buildInputs =
                    with pkgs;
@@ -33,6 +46,15 @@
                      cargo2nix
                      rustfmt
                    ];
+
+                 shellHook =
+                   ''
+                   ${help}
+
+                   alias gen_proof="cargo run --bin gen_proof"
+                   alias help="${help}"
+                   alias verify="cargo run --bin verify"
+                   '';
                };
          }
       );

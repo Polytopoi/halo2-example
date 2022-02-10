@@ -276,27 +276,14 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
 fn main() {
     use halo2_proofs::pasta::Fp;
     let args: Vec<String> = env::args().collect();
-
-    //// this stuf is here since we cant serialize a verifying key
     let k = 4;
-
-    let a = Fp::from(args[1].parse::<u64>().unwrap());
-    let b = Fp::from(args[2].parse::<u64>().unwrap());
-    let c = a * b;
-
-    let circuit = MyCircuit {
-        a: Some(a),
-        b: Some(b),
-    };
-    ////////////////////////////////////////
-
+    let c = Fp::from(args[1].parse::<u64>().unwrap());
+    let circuit = MyCircuit::default();
     let params: Params<EqAffine> = halo2_proofs::poly::commitment::Params::new(k);
+    // we recompute it since serialization is currently broken
     let vk = keygen_vk(&params, &circuit).unwrap();
     let pk = keygen_pk(&params, vk, &circuit).unwrap();
     let proof_path = "./proof";
-
-    // let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
-
     let mut proof_file = File::open(Path::new(proof_path)).expect("couldn't read proof from file");
 
     let mut proof = Vec::<u8>::new();
