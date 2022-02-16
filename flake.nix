@@ -6,6 +6,7 @@
     };
 
   outputs = { cargo2nix, rust-overlay, utils, ... }@inputs:
+    with builtins;
     utils.apply-systems
       { inherit inputs;
 
@@ -16,9 +17,10 @@
       }
       ({ cargo2nix, pkgs, system, ... }:
          let
+           rustChannel = "1.58.1";
            rustPkgs =
              pkgs.rustBuilder.makePackageSet'
-               { rustChannel = "1.56.1";
+               { rustChannel = rustChannel;
                  packageFun = import ./Cargo.nix;
                };
          in
@@ -38,17 +40,30 @@
                    verify c         c = a * b and the proof is read from ./proof
                    help             show this message
                  '';
-             in
-             pkgs.mkShell
-               { buildInputs =
-                   with pkgs;
-                   [ cargo
-                     cargo2nix
-                     rustfmt
-                   ];
 
-                 shellHook =
+               rust-toolchain =
+                 (pkgs.formats.toml {}).generate "rust-toolchain.toml"
+                   { toolchain =
+                       { channel = rustChannel;
+
+                         components =
+                           [ "rustc"
+                             "rust-src"
+                             "cargo"
+                             "clippy"
+                             "rust-docs"
+                           ];
+                       };
+                   };
+             in
+             rustPkgs.workspaceShell {
+               nativeBuildInputs = with pkgs; [ rust-analyzer rustup ];
+               shellHook =
                    ''
+                   cp --no-preserve=mode ${rust-toolchain} rust-toolchain.toml
+
+                   export RUST_SRC_PATH=~/.rustup/toolchains/${rustChannel}-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/
+
                    ${help}
 
                    alias gen_proof="cargo run --bin gen_proof"
