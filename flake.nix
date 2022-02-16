@@ -16,9 +16,10 @@
       }
       ({ cargo2nix, pkgs, system, ... }:
          let
+           rustChannel = "1.58.1";
            rustPkgs =
              pkgs.rustBuilder.makePackageSet'
-               { rustChannel = "1.56.1";
+               { rustChannel = rustChannel;
                  packageFun = import ./Cargo.nix;
                };
          in
@@ -39,16 +40,16 @@
                    help             show this message
                  '';
              in
-             pkgs.mkShell
-               { buildInputs =
-                   with pkgs;
-                   [ cargo
-                     cargo2nix
-                     rustfmt
-                   ];
-
-                 shellHook =
+             rustPkgs.workspaceShell {
+               nativeBuildInputs = with pkgs; [ rust-analyzer ];
+               shellHook =
                    ''
+                   echo '[toolchain]
+                   channel = "${rustChannel}"
+                   components = [ "rustc", "rust-src", "cargo", "clippy", "rust-docs" ]' > rust-toolchain.toml
+
+                   export RUST_SRC_PATH=~/.rustup/toolchains/${rustChannel}-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/
+
                    ${help}
 
                    alias gen_proof="cargo run --bin gen_proof"
