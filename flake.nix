@@ -60,7 +60,7 @@
                nativeBuildInputs = with pkgs; [ rust-analyzer rustup ];
                shellHook =
                    ''
-                   ln -fs ${rust-toolchain} rust-toolchain.toml
+                   cp ${rust-toolchain} rust-toolchain.toml
 
                    export RUST_SRC_PATH=~/.rustup/toolchains/${rustChannel}-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/
 
