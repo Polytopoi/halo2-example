@@ -41,7 +41,7 @@
                  '';
              in
              rustPkgs.workspaceShell {
-               nativeBuildInputs = with pkgs; [ rust-analyzer ];
+               nativeBuildInputs = with pkgs; [ rust-analyzer rustup ];
                shellHook =
                    ''
                    echo '[toolchain]
