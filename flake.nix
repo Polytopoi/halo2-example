@@ -6,6 +6,7 @@
     };
 
   outputs = { cargo2nix, rust-overlay, utils, ... }@inputs:
+    with builtins;
     utils.apply-systems
       { inherit inputs;
 
@@ -39,14 +40,27 @@
                    verify c         c = a * b and the proof is read from ./proof
                    help             show this message
                  '';
+
+               rust-toolchain =
+                 (pkgs.formats.toml {}).generate "rust-toolchain.toml"
+                   { toolchain =
+                       { channel = rustChannel;
+
+                         components =
+                           [ "rustc"
+                             "rust-src"
+                             "cargo"
+                             "clippy"
+                             "rust-docs"
+                           ];
+                       };
+                   };
              in
              rustPkgs.workspaceShell {
                nativeBuildInputs = with pkgs; [ rust-analyzer rustup ];
                shellHook =
                    ''
-                   echo '[toolchain]
-                   channel = "${rustChannel}"
-                   components = [ "rustc", "rust-src", "cargo", "clippy", "rust-docs" ]' > rust-toolchain.toml
+                   ln -fs ${rust-toolchain} rust-toolchain.toml
 
                    export RUST_SRC_PATH=~/.rustup/toolchains/${rustChannel}-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/
 

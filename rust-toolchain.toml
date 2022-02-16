@@ -1,3 +1,0 @@
-[toolchain]
-channel = "1.58.1"
-components = [ "rustc", "rust-src", "cargo", "clippy", "rust-docs" ]
