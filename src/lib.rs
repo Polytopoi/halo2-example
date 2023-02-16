@@ -1,12 +1,12 @@
 use halo2_proofs::{
-    arithmetic::FieldExt,
-    circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner},
+    arithmetic::Field,
+    circuit::{AssignedCell, Chip, Layouter, Region, SimpleFloorPlanner, Value},
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector},
     poly::Rotation,
 };
 use std::marker::PhantomData;
 
-pub trait NumericInstructions<F: FieldExt>: Chip<F> {
+pub trait NumericInstructions<F: Field>: Chip<F> {
     /// Variable representing a number.
     type Num;
 
@@ -32,7 +32,7 @@ pub trait NumericInstructions<F: FieldExt>: Chip<F> {
 
 /// The chip that will implement our instructions! Chips store their own
 /// config, as well as type markers if necessary.
-pub struct FieldChip<F: FieldExt> {
+pub struct FieldChip<F: Field> {
     config: FieldConfig,
     _marker: PhantomData<F>,
 }
@@ -56,7 +56,7 @@ pub struct FieldConfig {
     s_mul: Selector,
 }
 
-impl<F: FieldExt> FieldChip<F> {
+impl<F: Field> FieldChip<F> {
     fn construct(config: <Self as Chip<F>>::Config) -> Self {
         Self {
             config,
@@ -115,7 +115,7 @@ impl<F: FieldExt> FieldChip<F> {
     }
 }
 
-impl<F: FieldExt> Chip<F> for FieldChip<F> {
+impl<F: Field> Chip<F> for FieldChip<F> {
     type Config = FieldConfig;
     type Loaded = ();
 
@@ -130,9 +130,9 @@ impl<F: FieldExt> Chip<F> for FieldChip<F> {
 
 /// A variable representing a number.
 #[derive(Clone)]
-pub struct Number<F: FieldExt>(AssignedCell<F, F>);
+pub struct Number<F: Field>(AssignedCell<F, F>);
 
-impl<F: FieldExt> NumericInstructions<F> for FieldChip<F> {
+impl<F: Field> NumericInstructions<F> for FieldChip<F> {
     type Num = Number<F>;
 
     fn load_private(
@@ -150,7 +150,7 @@ impl<F: FieldExt> NumericInstructions<F> for FieldChip<F> {
                         || "private input",
                         config.advice[0],
                         0,
-                        || value.ok_or(Error::Synthesis),
+                        || value.map_or(Value::unknown(), |v| Value::known(v)),
                     )
                     .map(Number)
             },
@@ -191,7 +191,7 @@ impl<F: FieldExt> NumericInstructions<F> for FieldChip<F> {
                         || "lhs * rhs",
                         config.advice[0],
                         1,
-                        || value.ok_or(Error::Synthesis),
+                        || value,
                     )
                     .map(Number)
             },
@@ -216,12 +216,12 @@ impl<F: FieldExt> NumericInstructions<F> for FieldChip<F> {
 /// they won't have any value during key generation. During proving, if any of these
 /// were `None` we would get an error.
 #[derive(Default)]
-pub struct MyCircuit<F: FieldExt> {
+pub struct MyCircuit<F: Field> {
     pub a: Option<F>,
     pub b: Option<F>,
 }
 
-impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+impl<F: Field> Circuit<F> for MyCircuit<F> {
     // Since we are using a single chip for everything, we can just reuse its config.
     type Config = FieldConfig;
     type FloorPlanner = SimpleFloorPlanner;
