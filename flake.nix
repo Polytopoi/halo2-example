@@ -11,15 +11,15 @@
       { inherit inputs;
 
         overlays =
-          [ (import "${cargo2nix}/overlay")
-            rust-overlay.overlay
+          [ cargo2nix.overlays.default
+            rust-overlay.overlays.default
           ];
       }
       ({ cargo2nix, pkgs, system, ... }:
          let
-           rustChannel = "1.58.1";
+           rustChannel = "1.67.1";
            rustPkgs =
-             pkgs.rustBuilder.makePackageSet'
+             pkgs.rustBuilder.makePackageSet
                { rustChannel = rustChannel;
                  packageFun = import ./Cargo.nix;
                };
